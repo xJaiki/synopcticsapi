@@ -16,6 +16,9 @@ namespace synopcticsapi {
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+
+            // Inizializza Unity per la dependency injection
+            UnityConfig.RegisterComponents();
         }
     }
 }
