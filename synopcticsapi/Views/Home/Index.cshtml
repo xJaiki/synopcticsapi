@@ -1,26 +1,190 @@
 ﻿<main>
     <section class="row" aria-labelledby="aspnetTitle">
-        <h1 id="aspnetTitle">ASP.NET</h1>
-        <p class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS, and JavaScript.</p>
-        <p><a href="https://asp.net" class="btn btn-primary btn-md">Learn more &raquo;</a></p>
+        <h1 id="aspnetTitle">Synoptic API Tester</h1>
+        <p class="lead">Use the buttons below to test the Synoptic API endpoints.</p>
     </section>
-    <div class="row">
-        <section class="col-md-4" aria-labelledby="gettingStartedTitle">
-            <h2 id="gettingStartedTitle">Getting started</h2>
-            <p>ASP.NET Web API is a framework that makes it easy to build HTTP services that reach
-            a broad range of clients, including browsers and mobile devices. ASP.NET Web API
-            is an ideal platform for building RESTful applications on the .NET Framework.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301870">Learn more &raquo;</a></p>
-        </section>
-        <section class="col-md-4" aria-labelledby="librariesTitle">
-            <h2 id="librariesTitle">Get more libraries</h2>
-            <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301871">Learn more &raquo;</a></p>
-        </section>
-        <section class="col-md-4" aria-labelledby="hostingTitle">
-            <h2 id="hostingTitle">Web Hosting</h2>
-            <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
-            <p><a class="btn btn-outline-dark" href="https://go.microsoft.com/fwlink/?LinkId=301872">Learn more &raquo;</a></p>
-        </section>>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>API Tests</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <button id="btnGetList" class="btn btn-primary">Get Synoptic List</button>
+                        <button id="btnGetSynoptic" class="btn btn-info">Get Synoptic by ID</button>
+                        <button id="btnInsertSynoptic" class="btn btn-success">Insert Synoptic</button>
+                        <button id="btnUpdateSynoptic" class="btn btn-warning">Update Synoptic</button>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="layoutId" class="form-label">Layout ID:</label>
+                        <input type="text" id="layoutId" class="form-control" value="TestLayout" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="areaId" class="form-label">Area ID:</label>
+                        <input type="text" id="areaId" class="form-control" value="TestArea" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="svgContent" class="form-label">SVG Content:</label>
+                        <textarea id="svgContent" class="form-control" rows="4"><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' stroke='black' stroke-width='2' fill='red' /></svg></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Response</h4>
+                </div>
+                <div class="card-body">
+                    <pre id="apiResponse" class="bg-light p-3" style="max-height: 300px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>document.addEventListener('DOMContentLoaded', function() {
+            // Get Synoptic List
+            document.getElementById('btnGetList').addEventListener('click', function() {
+                fetch('/api/v2/GetSynopticList')
+                    .then(response => {
+                        return response.json().then(data => ({
+                            status: response.status,
+                            statusText: response.statusText,
+                            data: data
+                        }));
+                    })
+                    .then(result => {
+                        document.getElementById('apiResponse').textContent =
+                            `Status: ${result.status} ${result.statusText}\n\n` +
+                            JSON.stringify(result.data, null, 2);
+                    })
+                    .catch(error => {
+                        document.getElementById('apiResponse').textContent = 'Error: ' + error;
+                    });
+            });
+
+            // Get Synoptic by ID
+            document.getElementById('btnGetSynoptic').addEventListener('click', function() {
+                const layoutId = document.getElementById('layoutId').value;
+                fetch(`/api/v2/GetSynoptic?layout=${layoutId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => ({
+                                status: response.status,
+                                statusText: response.statusText,
+                                data: text
+                            }));
+                        }
+                        return response.json().then(data => ({
+                            status: response.status,
+                            statusText: response.statusText,
+                            data: data
+                        }));
+                    })
+                    .then(result => {
+                        document.getElementById('apiResponse').textContent =
+                            `Status: ${result.status} ${result.statusText}\n\n` +
+                            (typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data);
+                    })
+                    .catch(error => {
+                        document.getElementById('apiResponse').textContent = 'Error: ' + error;
+                    });
+            });
+
+            // Insert Synoptic
+            document.getElementById('btnInsertSynoptic').addEventListener('click', function() {
+                const layoutId = document.getElementById('layoutId').value;
+                const areaId = document.getElementById('areaId').value;
+                const svgContent = document.getElementById('svgContent').value;
+
+                const data = {
+                    Layout: layoutId,
+                    AreaId: areaId,
+                    Svg: svgContent,
+                    SvgBackup: null
+                };
+
+                fetch('/api/v2/InsertSynoptic', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => ({
+                            status: response.status,
+                            statusText: response.statusText,
+                            data: text
+                        }));
+                    }
+                    return response.json().then(data => ({
+                        status: response.status,
+                        statusText: response.statusText,
+                        data: data
+                    }));
+                })
+                .then(result => {
+                    document.getElementById('apiResponse').textContent =
+                        `Status: ${result.status} ${result.statusText}\n\n` +
+                        (typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data);
+                })
+                .catch(error => {
+                    document.getElementById('apiResponse').textContent = 'Error: ' + error;
+                });
+            });
+
+            // Update Synoptic
+            document.getElementById('btnUpdateSynoptic').addEventListener('click', function() {
+                const layoutId = document.getElementById('layoutId').value;
+                const areaId = document.getElementById('areaId').value;
+                const svgContent = document.getElementById('svgContent').value;
+
+                const data = {
+                    Layout: layoutId,
+                    AreaId: areaId,
+                    Svg: svgContent,
+                    SvgBackup: null
+                };
+
+                fetch('/api/v2/UpdateSynoptic', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => ({
+                            status: response.status,
+                            statusText: response.statusText,
+                            data: text
+                        }));
+                    }
+                    return response.json().then(data => ({
+                        status: response.status,
+                        statusText: response.statusText,
+                        data: data
+                    }));
+                })
+                .then(result => {
+                    document.getElementById('apiResponse').textContent =
+                        `Status: ${result.status} ${result.statusText}\n\n` +
+                        (typeof result.data === 'object' ? JSON.stringify(result.data, null, 2) : result.data);
+                })
+                .catch(error => {
+                    document.getElementById('apiResponse').textContent = 'Error: ' + error;
+                });
+            });
+        });</script>
 </main>
