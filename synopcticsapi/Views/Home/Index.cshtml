@@ -52,24 +52,30 @@
 
     <script>document.addEventListener('DOMContentLoaded', function() {
             // Get Synoptic List
-            document.getElementById('btnGetList').addEventListener('click', function() {
-                fetch('/api/v2/GetSynopticList')
-                    .then(response => {
-                        return response.json().then(data => ({
-                            status: response.status,
-                            statusText: response.statusText,
-                            data: data
-                        }));
-                    })
-                    .then(result => {
-                        document.getElementById('apiResponse').textContent =
-                            `Status: ${result.status} ${result.statusText}\n\n` +
-                            JSON.stringify(result.data, null, 2);
-                    })
-                    .catch(error => {
-                        document.getElementById('apiResponse').textContent = 'Error: ' + error;
-                    });
+    document.getElementById('btnGetList').addEventListener('click', function () {
+        fetch('/api/v2/GetSynopticList', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify({}) // Corpo vuoto come oggetto JSON
+        })
+            .then(response => {
+                return response.json().then(data => ({
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data
+                }));
+            })
+            .then(result => {
+                document.getElementById('apiResponse').textContent =
+                    `Status: ${result.status} ${result.statusText}\n\n` +
+                    JSON.stringify(result.data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById('apiResponse').textContent = 'Error: ' + error;
             });
+    });
 
             // Get Synoptic by ID
             document.getElementById('btnGetSynoptic').addEventListener('click', function() {

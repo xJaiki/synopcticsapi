@@ -2,8 +2,12 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
+using System.Web.Http.Cors;
+using Newtonsoft.Json;
 using synopcticsapi.Models;
 using synopcticsapi.Repository;
 
@@ -11,6 +15,7 @@ namespace synopcticsapi.Controllers {
     /// <summary>
     /// API Controller for synoptic operations
     /// </summary>
+    [EnableCors(origins: "*", headers: "*", methods: "*")]
     [RoutePrefix("api/v2")]
     public class SynopticController : ApiController {
         private readonly ISynopticRepository _repository;
@@ -24,14 +29,31 @@ namespace synopcticsapi.Controllers {
         /// Gets a list of all synoptic layouts
         /// </summary>
         /// <returns>A list of synoptic layouts</returns>
-        [HttpGet]
+        [HttpPost]
         [Route("GetSynopticList")]
         public async Task<IHttpActionResult> GetSynopticList()
         {
             try
             {
                 var synoptics = await _repository.GetSynopticListAsync();
-                return Ok(synoptics);
+                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                response.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        SynopticList = synoptics,
+                        ErrorList = new List<object>()
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                // Aggiungi tutti i possibili header
+                response.Headers.Add("Access-Control-Allow-Origin", "*");
+                response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Accept");
+                response.Headers.Add("Access-Control-Max-Age", "86400");
+
+                return ResponseMessage(response);
             }
             catch (Exception ex)
             {
@@ -39,34 +61,98 @@ namespace synopcticsapi.Controllers {
             }
         }
 
-        /// <summary>
-        /// Gets a specific synoptic layout by its identifier
-        /// </summary>
-        /// <param name="layout">The layout identifier</param>
-        /// <returns>The synoptic layout</returns>
-        [HttpGet]
-        [Route("GetSynoptic")]
-        public async Task<IHttpActionResult> GetSynoptic(string layout)
+        [HttpOptions]
+        [Route("GetSynopticList")]
+        public IHttpActionResult Options()
         {
-            if (string.IsNullOrEmpty(layout))
-            {
-                return BadRequest("Layout identifier is required");
-            }
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            response.Headers.Add("Access-Control-Allow-Origin", "*");
+            response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Accept");
+            return ResponseMessage(response);
+        }
 
+        [HttpPost]
+        [Route("GetSynoptic")]
+        public async Task<IHttpActionResult> GetSynoptic([FromBody] SynopticRequest request)
+        {
             try
             {
-                var synoptic = await _repository.GetSynopticAsync(layout);
-                if (synoptic == null)
+                if (request == null || string.IsNullOrEmpty(request.SynopticName))
                 {
-                    return NotFound();
+                    var errorResponse = new HttpResponseMessage(HttpStatusCode.BadRequest);
+                    errorResponse.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            ErrorList = new List<object> { new { Description = "Synoptic name is required" } }
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
+
+                    AddCorsHeaders(errorResponse);
+                    return ResponseMessage(errorResponse);
                 }
 
-                return Ok(synoptic);
+                var synoptic = await _repository.GetSynopticAsync(request.SynopticName);
+                var response = new HttpResponseMessage(synoptic == null ? HttpStatusCode.NotFound : HttpStatusCode.OK);
+
+                if (synoptic == null)
+                {
+                    response.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            ErrorList = new List<object> { new { Description = "Synoptic not found" } }
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
+                }
+                else
+                {
+                    // Questo formato deve corrispondere a ciò che il client si aspetta
+                    response.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            SynopticList = new List<object>
+                            {
+                        new
+                        {
+                            Name = synoptic.Layout,
+                            Svg = synoptic.Svg,
+                            AreaId = synoptic.AreaId
+                        }
+                            },
+                            ErrorList = new List<object>()
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
+                }
+
+                AddCorsHeaders(response);
+                return ResponseMessage(response);
             }
             catch (Exception ex)
             {
-                return InternalServerError(ex);
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = ex.Message } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
+        }
+
+        // Classe per ricevere la richiesta
+        public class SynopticRequest {
+            public string SynopticName { get; set; }
         }
 
         /// <summary>
@@ -74,37 +160,89 @@ namespace synopcticsapi.Controllers {
         /// </summary>
         /// <param name="synopticLayout">The synoptic layout to insert</param>
         /// <returns>The result of the operation</returns>
-        [HttpPost]
+        [HttpGet]
         [Route("InsertSynoptic")]
         public async Task<IHttpActionResult> InsertSynoptic([FromBody] SynopticLayout synopticLayout)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.BadRequest);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = "Invalid model state" } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
 
             if (synopticLayout == null)
             {
-                return BadRequest("Synoptic layout data is required");
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.BadRequest);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = "Synoptic layout data is required" } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
 
             try
             {
                 bool result = await _repository.InsertSynopticAsync(synopticLayout);
+                var response = new HttpResponseMessage(result ? HttpStatusCode.Created : HttpStatusCode.Conflict);
+
                 if (result)
                 {
-                    // Return 201 Created with the location of the new resource
-                    return Created($"api/v2/GetSynoptic?layout={synopticLayout.Layout}", synopticLayout);
+                    response.Headers.Location = new Uri(Request.RequestUri, $"GetSynoptic?layout={synopticLayout.Layout}");
+                    response.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            SynopticList = new List<object> { synopticLayout },
+                            ErrorList = new List<object>()
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
                 }
                 else
                 {
-                    // Return 409 Conflict if the synoptic already exists
-                    return Content(HttpStatusCode.Conflict, "A synoptic with this layout already exists");
+                    response.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            ErrorList = new List<object> { new { Description = "A synoptic with this layout already exists" } }
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
                 }
+
+                AddCorsHeaders(response);
+                return ResponseMessage(response);
             }
             catch (Exception ex)
             {
-                return InternalServerError(ex);
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = ex.Message } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
         }
 
@@ -119,30 +257,120 @@ namespace synopcticsapi.Controllers {
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.BadRequest);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = "Invalid model state" } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
 
             if (synopticLayout == null)
             {
-                return BadRequest("Synoptic layout data is required");
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.BadRequest);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = "Synoptic layout data is required" } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
 
             try
             {
                 bool result = await _repository.UpdateSynopticAsync(synopticLayout);
+                var response = new HttpResponseMessage(result ? HttpStatusCode.OK : HttpStatusCode.NotFound);
+
                 if (result)
                 {
-                    return Ok(synopticLayout);
+                    response.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            SynopticList = new List<object> { synopticLayout },
+                            ErrorList = new List<object>()
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
                 }
                 else
                 {
-                    return NotFound();
+                    response.Content = new StringContent(
+                        JsonConvert.SerializeObject(new
+                        {
+                            ErrorList = new List<object> { new { Description = "Synoptic not found" } }
+                        }),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
                 }
+
+                AddCorsHeaders(response);
+                return ResponseMessage(response);
             }
             catch (Exception ex)
             {
-                return InternalServerError(ex);
+                var errorResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                errorResponse.Content = new StringContent(
+                    JsonConvert.SerializeObject(new
+                    {
+                        ErrorList = new List<object> { new { Description = ex.Message } }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                AddCorsHeaders(errorResponse);
+                return ResponseMessage(errorResponse);
             }
+        }
+
+        // Metodo helper per aggiungere gli header CORS
+        private void AddCorsHeaders(HttpResponseMessage response)
+        {
+            response.Headers.Add("Access-Control-Allow-Origin", "*");
+            response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
+            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Accept");
+            response.Headers.Add("Access-Control-Max-Age", "86400");
+        }
+
+        // Aggiungi metodi OPTIONS per gli altri endpoint
+        [HttpOptions]
+        [Route("GetSynoptic")]
+        public IHttpActionResult GetSynopticOptions()
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            AddCorsHeaders(response);
+            return ResponseMessage(response);
+        }
+
+        [HttpOptions]
+        [Route("InsertSynoptic")]
+        public IHttpActionResult InsertSynopticOptions()
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            AddCorsHeaders(response);
+            return ResponseMessage(response);
+        }
+
+        [HttpOptions]
+        [Route("UpdateSynoptic")]
+        public IHttpActionResult UpdateSynopticOptions()
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            AddCorsHeaders(response);
+            return ResponseMessage(response);
         }
     }
 }
