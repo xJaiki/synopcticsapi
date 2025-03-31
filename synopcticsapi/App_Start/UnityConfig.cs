@@ -26,6 +26,7 @@ namespace synopcticsapi
 
             // Register repository
             container.RegisterType<ISynopticRepository, SynopticRepository>();
+            container.RegisterType<IPlantModelTreeRepository, PlantModelTreeRepository>();
         }
     }
 }

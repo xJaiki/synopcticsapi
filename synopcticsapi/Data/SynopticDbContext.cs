@@ -15,6 +15,7 @@ namespace synopcticsapi.Data {
         /// DbSet for SynopticLayouts table
         /// </summary>
         public DbSet<SynopticLayout> SynopticLayouts { get; set; }
+        public DbSet<PlantModelTree> PlantModels { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -25,6 +26,13 @@ namespace synopcticsapi.Data {
             // Configure the table name
             modelBuilder.Entity<SynopticLayout>()
                 .ToTable("SynopticLayouts");
+
+            // Configure the primary key for the PlantModelTree
+            modelBuilder.Entity<PlantModelTree>()
+                .HasKey(p => p.EquipmentId);
+
+            modelBuilder.Entity<PlantModelTree>()
+                .ToTable("PlantModel");
 
             base.OnModelCreating(modelBuilder);
         }
