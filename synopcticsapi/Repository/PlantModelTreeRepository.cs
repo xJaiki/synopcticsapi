@@ -35,9 +35,7 @@ namespace synopcticsapi.Repository {
             return BuildEquipmentHierarchy(PlantModelTreeData);
         }
 
-        /// <summary>
-        /// Builds the hierarchical structure from flat data
-        /// </summary>
+
         private List<EquipmentDto> BuildEquipmentHierarchy(List<PlantModelTree> flatData)
         {
             // Group by AreaId first (should typically be just one area with ID 2)
@@ -72,12 +70,33 @@ namespace synopcticsapi.Repository {
                             eqDto.ObjectTypeId = ExtractObjectTypeId(eqDto.EquipmentDescription);
                             eqDto.EquipmentPath = BuildEquipmentPath(area.EquipmentId, lineGroup.EquipmentId, line.EquipmentId, eq.EquipmentId);
                             lineDto.Children.Add(eqDto);
+
+                            // Find all level 6 components (children of this equipment)
+                            var components = flatData.Where(p => p.Level == 6 && p.Parent == eq.EquipmentId).ToList();
+                            foreach (var comp in components)
+                            {
+                                var compDto = MapToEquipmentDto(comp);
+                                compDto.ObjectTypeId = ExtractObjectTypeId(compDto.EquipmentDescription);
+                                compDto.EquipmentPath = BuildEquipmentPath(area.EquipmentId, lineGroup.EquipmentId, line.EquipmentId, eq.EquipmentId, comp.EquipmentId);
+                                eqDto.Children.Add(compDto);
+                            }
                         }
                     }
                 }
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Builds equipment path string in the format needed by frontend
+        /// </summary>
+        private string BuildEquipmentPath(int areaId, int lineGroupId, int lineId, int equipmentId, int? componentId = null)
+        {
+            if (componentId.HasValue)
+                return $"{areaId}-{lineGroupId}-{lineId}-{equipmentId}-{componentId}";
+            else
+                return $"{areaId}-{lineGroupId}-{lineId}-{equipmentId}";
         }
 
         /// <summary>
