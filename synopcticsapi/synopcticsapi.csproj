@@ -207,7 +207,12 @@
     <Compile Include="Migrations\202503311511373_double.Designer.cs">
       <DependentUpon>202503311511373_double.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202504011352145_AddSinopticoTest.cs" />
+    <Compile Include="Migrations\202504011352145_AddSinopticoTest.Designer.cs">
+      <DependentUpon>202504011352145_AddSinopticoTest.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
+    <Compile Include="Models\SinopticoTest.cs" />
     <Compile Include="Models\PlantModelTree.cs" />
     <Compile Include="Models\SynopticLayout.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -362,6 +367,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202503311511373_double.resx">
       <DependentUpon>202503311511373_double.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202504011352145_AddSinopticoTest.resx">
+      <DependentUpon>202504011352145_AddSinopticoTest.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>
