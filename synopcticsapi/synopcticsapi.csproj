@@ -213,6 +213,7 @@
     <Compile Include="Repository\IPlantModelTreeRepository.cs" />
     <Compile Include="Repository\ISynopticRepository.cs" />
     <Compile Include="Repository\SynopticRepository.cs" />
+    <Content Include="sql\aggiungere_valori_test_dati.sql" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Areas\HelpPage\HelpPage.css" />
@@ -265,6 +266,7 @@
     <Content Include="Scripts\jquery-3.7.0.slim.js" />
     <Content Include="Scripts\jquery-3.7.0.slim.min.js" />
     <Content Include="Scripts\modernizr-2.8.3.js" />
+    <Content Include="sql\initial_data.sql" />
     <Content Include="Web.config" />
     <Content Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
