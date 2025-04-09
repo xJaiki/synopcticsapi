@@ -15,6 +15,7 @@ namespace synopcticsapi.Data
         /// DbSet for SynopticLayouts table
         /// </summary>
         public DbSet<SynopticLayout> SynopticLayouts { get; set; }
+        public DbSet<SynopticData> SynopticData { get; set; }
         public DbSet<PlantModelTree> PlantModels { get; set; }
         /// <summary>
         /// DbSet for SinopticoTest table

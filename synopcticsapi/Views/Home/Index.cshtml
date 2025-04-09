@@ -163,16 +163,15 @@
         let translateX = 0;
         let translateY = 0;
 
+        // Variabile per l'intervallo di aggiornamento automatico
+        let autoRefreshInterval = null;
+        const refreshInterval = 5000; // Intervallo di refresh in millisecondi (5 secondi)
+
         // Inizializzazione del modal Bootstrap
         const infoModal = new bootstrap.Modal(document.getElementById('infoModal'));
 
-        // Dati fittizi per il demo (in un'applicazione reale, questi verrebbero dal database)
-        const synopticData = [
-            { id: 'Status_12', text1: 'ABC', text2: 'XYZ', text3: '123', status: 1, lastUpdate: '2025-04-01 10:00:00' },
-            { id: 'Status_14', text1: 'DEF', text2: 'UVW', text3: '456', status: 2, lastUpdate: '2025-04-01 10:15:00' },
-            { id: 'Status_40', text1: 'GHI', text2: 'RST', text3: '789', status: 0, lastUpdate: '2025-04-01 10:30:00' },
-            { id: 'Status_42', text1: 'JKL', text2: 'MNO', text3: '012', status: 3, lastUpdate: '2025-04-01 10:45:00' }
-        ];
+        // Variabile per memorizzare i dati del sinottico
+        let synopticData = [];
 
         // Caricamento della lista all'avvio
         loadSynopticList();
@@ -180,7 +179,7 @@
         // Event listeners
         btnLoadSynoptic.addEventListener('click', loadSelectedSynoptic);
         btnInfo.addEventListener('click', showInfoModal);
-        btnRefreshData.addEventListener('click', refreshSvgData);
+        btnRefreshData.addEventListener('click', manualRefreshData);
 
         // Eventi per lo zoom
         btnZoomIn.addEventListener('click', () => zoomIn());
@@ -321,27 +320,81 @@
             });
         }
 
-        // Funzione per simulare l'aggiornamento dei dati (in produzione, questa chiamata API)
-        function refreshSvgData() {
-            showLoading();
+        // Funzione per avviare l'aggiornamento automatico
+        function startAutoRefresh() {
+            // Ferma ogni intervallo esistente prima di crearne uno nuovo
+            stopAutoRefresh();
 
-            // Simula una chiamata API con un ritardo
-            setTimeout(() => {
-                // Qui potresti fare una chiamata fetch per ottenere dati aggiornati
-                // In questo esempio, modifichiamo casualmente alcuni dati per simulare un aggiornamento
-                synopticData.forEach(item => {
-                    // Aggiorna i dati con valori casuali per la demo
-                    if (Math.random() > 0.5) {
-                        item.status = Math.floor(Math.random() * 4); // Status casuale 0-3
-                        item.lastUpdate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            // Crea un nuovo intervallo di aggiornamento
+            autoRefreshInterval = setInterval(() => {
+                refreshSvgData(false); // false = non mostrare il loading spinner
+            }, refreshInterval);
+
+            console.log('Auto-refresh started');
+        }
+
+        // Funzione per fermare l'aggiornamento automatico
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                console.log('Auto-refresh stopped');
+            }
+        }
+
+        // Funzione per l'aggiornamento manuale (chiamata dal pulsante)
+        function manualRefreshData() {
+            refreshSvgData(true); // true = mostra il loading spinner
+        }
+
+        // Funzione per ottenere i dati aggiornati dal server
+        function refreshSvgData(showLoader = false) {
+            const selectedValue = synopticSelect.value;
+            if (!selectedValue) return;
+
+            if (showLoader) showLoading();
+
+            fetch('/api/v2/GetSynopticData', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    SynopticName: selectedValue
+                })
+            })
+                .then(response => response.json())
+                .then(result => {
+                    // Verifica la struttura esatta della risposta con un console.log
+                    console.log("Risposta API:", result);
+
+                    if (result.DataItems && Array.isArray(result.DataItems)) {
+                        // Utilizza i dati dalla struttura corretta
+                        synopticData = result.DataItems.map(item => ({
+                            id: item.Id,        // Assicurati che i nomi dei campi corrispondano
+                            text1: item.Text1,
+                            text2: item.Text2,
+                            text3: item.Text3,
+                            status: item.Status,
+                            lastUpdate: item.LastUpdate
+                        }));
+
+                        // Aggiungi un log per verificare i dati dopo la mappatura
+                        console.log("Dati mappati:", synopticData);
+
+                        // Aggiorna l'SVG con i nuovi dati
+                        updateSvgData();
+                    } else {
+                        console.error('Formato risposta non valido:', result);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing data:', error);
+                    if (showLoader) {
+                        hideLoading();
+                        alert('Error refreshing data. Please try again.');
                     }
                 });
-
-                // Aggiorna l'SVG con i nuovi dati
-                updateSvgData();
-
-                hideLoading();
-            }, 1000);
         }
 
         // Funzione per caricare la lista dei synoptic
@@ -393,6 +446,9 @@
                 return;
             }
 
+            // Stop any existing auto-refresh
+            stopAutoRefresh();
+
             showLoading();
 
             fetch('/api/v2/GetSynoptic', {
@@ -435,8 +491,11 @@
                             const elementCount = svgElement.querySelectorAll('*').length;
                             document.getElementById('elementsCount').textContent = elementCount;
 
-                            // Aggiorna i dati nell'SVG
-                            updateSvgData();
+                            // Carica i dati iniziali
+                            refreshSvgData(false);
+
+                            // Avvia l'aggiornamento automatico
+                            startAutoRefresh();
                         }
                     } else {
                         console.error('Formato risposta non valido o risultato vuoto:', result);
@@ -452,16 +511,9 @@
                 });
         }
 
-        // In una implementazione reale, avresti una funzione per recuperare i dati dal database
-        // Ecco un esempio di come potrebbe essere:
-        function fetchDataFromDatabase() {
-            // Questa è una simulazione - in produzione faresti una chiamata API
-            return new Promise((resolve) => {
-                // Simula una risposta dal server
-                setTimeout(() => {
-                    resolve(synopticData);
-                }, 500);
-            });
-        }
+        // Assicurarsi che l'aggiornamento automatico si fermi quando la pagina viene chiusa o cambiata
+        window.addEventListener('beforeunload', function () {
+            stopAutoRefresh();
+        });
     });
 </script>

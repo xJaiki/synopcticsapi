@@ -7,13 +7,13 @@ namespace synopcticsapi.Migrations
     using System.Resources;
     
     [GeneratedCode("EntityFramework.Migrations", "6.5.1")]
-    public sealed partial class InitialCreate : IMigrationMetadata
+    public sealed partial class syntest2 : IMigrationMetadata
     {
-        private readonly ResourceManager Resources = new ResourceManager(typeof(InitialCreate));
+        private readonly ResourceManager Resources = new ResourceManager(typeof(syntest2));
         
         string IMigrationMetadata.Id
         {
-            get { return "202503311456520_InitialCreate"; }
+            get { return "202504090857337_syntest2"; }
         }
         
         string IMigrationMetadata.Source

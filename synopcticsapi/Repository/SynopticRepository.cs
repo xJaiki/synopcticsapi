@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Data.Entity;
+using System.Linq;
 using System.Threading.Tasks;
 using synopcticsapi.Data;
 using synopcticsapi.Models;
@@ -75,6 +77,82 @@ namespace synopcticsapi.Repository {
 
             // Or alternatively:
             // _context.Entry(existing).CurrentValues.SetValues(synopticLayout);
+
+            int result = await _context.SaveChangesAsync();
+            return result > 0;
+        }
+
+        /// <summary>
+        /// Model class for synoptic data items
+        /// </summary>
+        public class SynopticDataItem {
+            public string Id { get; set; }
+            public string Text1 { get; set; }
+            public string Text2 { get; set; }
+            public string Text3 { get; set; }
+            public int Status { get; set; }
+            public string LastUpdate { get; set; }
+        }
+
+        /// <summary>
+        /// Gets the current data for a specific synoptic
+        /// </summary>
+        /// <param name="layout">The layout identifier</param>
+        /// <returns>The current synoptic data</returns>
+        public async Task<List<SynopticDataItem>> GetSynopticDataAsync(string layout)
+        {
+            // Prima ottieni i dati senza formattare la data
+            var data = await _context.SynopticData
+                .Where(d => d.SynopticLayout == layout)
+                .Select(d => new {
+                    d.ElementId,
+                    d.Text1,
+                    d.Text2,
+                    d.Text3,
+                    d.Status,
+                    d.LastUpdate
+                })
+                .ToListAsync();
+
+            // Poi formatta i dati dopo che sono stati recuperati dal database
+            return data.Select(d => new SynopticDataItem
+            {
+                Id = d.ElementId,
+                Text1 = d.Text1,
+                Text2 = d.Text2,
+                Text3 = d.Text3,
+                Status = d.Status,
+                LastUpdate = d.LastUpdate.ToString("yyyy-MM-dd HH:mm:ss")
+            }).ToList();
+        }
+        public async Task<bool> UpdateSynopticElementDataAsync(
+            string elementId,
+            string synopticLayout,
+            string text1,
+            string text2,
+            string text3,
+            int status)
+        {
+            var data = await _context.SynopticData
+                .FirstOrDefaultAsync(d => d.ElementId == elementId && d.SynopticLayout == synopticLayout);
+
+            if (data == null)
+            {
+                // L'elemento non esiste, creane uno nuovo
+                data = new SynopticData
+                {
+                    ElementId = elementId,
+                    SynopticLayout = synopticLayout
+                };
+                _context.SynopticData.Add(data);
+            }
+
+            // Aggiorna i campi
+            data.Text1 = text1;
+            data.Text2 = text2;
+            data.Text3 = text3;
+            data.Status = status;
+            data.LastUpdate = DateTime.Now;
 
             int result = await _context.SaveChangesAsync();
             return result > 0;

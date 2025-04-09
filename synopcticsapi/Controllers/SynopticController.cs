@@ -10,6 +10,7 @@ using System.Web.Http.Cors;
 using Newtonsoft.Json;
 using synopcticsapi.Models;
 using synopcticsapi.Repository;
+using static synopcticsapi.Repository.SynopticRepository;
 
 namespace synopcticsapi.Controllers {
     /// <summary>
@@ -292,5 +293,100 @@ namespace synopcticsapi.Controllers {
             response.Headers.Add("Access-Control-Max-Age", "86400");
         }
         #endregion
+
+        private class SynopticDataResponse {
+            public List<SynopticDataItem> DataItems { get; set; }
+            public List<ErrorItem> ErrorList { get; set; } = new List<ErrorItem>();
+        }
+
+        [HttpPost]
+        [Route("GetSynopticData")]
+        public async Task<IHttpActionResult> GetSynopticData([FromBody] SynopticRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrEmpty(request.SynopticName))
+                {
+                    return CreateErrorResponse(HttpStatusCode.BadRequest, "Synoptic name is required");
+                }
+
+                var data = await _repository.GetSynopticDataAsync(request.SynopticName);
+
+                if (data == null)
+                {
+                    return CreateErrorResponse(HttpStatusCode.NotFound, "Synoptic data not found");
+                }
+
+                return CreateResponse(HttpStatusCode.OK, new SynopticDataResponse
+                {
+                    DataItems = data
+                });
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        // Aggiungi anche l'handler OPTIONS per CORS
+        [HttpOptions]
+        [Route("GetSynopticData")]
+        public IHttpActionResult GetSynopticDataOptions()
+        {
+            return CreateOptionsResponse();
+        }
+
+        public class UpdateSynopticElementRequest {
+            public string ElementId { get; set; }
+            public string SynopticName { get; set; }
+            public string Text1 { get; set; }
+            public string Text2 { get; set; }
+            public string Text3 { get; set; }
+            public int Status { get; set; }
+        }
+
+        [HttpPost]
+        [Route("UpdateSynopticElement")]
+        public async Task<IHttpActionResult> UpdateSynopticElement([FromBody] UpdateSynopticElementRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrEmpty(request.ElementId) || string.IsNullOrEmpty(request.SynopticName))
+                {
+                    return CreateErrorResponse(HttpStatusCode.BadRequest, "Element ID and Synoptic name are required");
+                }
+
+                bool result = await _repository.UpdateSynopticElementDataAsync(
+                    request.ElementId,
+                    request.SynopticName,
+                    request.Text1,
+                    request.Text2,
+                    request.Text3,
+                    request.Status
+                );
+
+                if (result)
+                {
+                    return CreateErrorResponse(HttpStatusCode.OK, "Element updated successfully", 1);
+                }
+                else
+                {
+                    return CreateErrorResponse(HttpStatusCode.InternalServerError, "Failed to update element", 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                return CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        [HttpOptions]
+        [Route("UpdateSynopticElement")]
+        public IHttpActionResult UpdateSynopticElementOptions()
+        {
+            return CreateOptionsResponse();
+        }
     }
+
+
 }
